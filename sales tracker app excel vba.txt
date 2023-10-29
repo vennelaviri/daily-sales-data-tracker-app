@@ -1,0 +1,73 @@
+Function checkSales(inThisRange As Range) As Boolean
+    'checks if the sales of at least one store are entered
+    checkSales = WorksheetFunction.CountA(inThisRange) > 0
+End Function
+
+Sub processSales()
+    'This is a macro to process the daily sales of We Are Nuts store chain.
+    'In this macro, we do the following activities
+    
+    '   1. Check if at least one store sales are entered. If not exit
+    '   2. For each store's sales, check if the value is < 500 or > 5000
+    '       2.1 If so, ask and capture the reason for deviation
+    '   3. Show summary statistics of the sales
+    '   4. Save a snapshot of sales log to current folder as PDF
+    
+    If checkSales(Range("C7:C30")) = False Then
+        Debug.Print "No Sales"
+        Exit Sub
+    End If
+    
+    Dim storeSales As Range
+    Dim sumOfSales As Double, curSale As Double
+    Dim countOfSales As Integer
+    Dim minSale As Double, maxSale As Double
+    Dim reason As String, message As String, minStore As String, maxStore As String
+    
+    sumOfSales = 0
+    countOfSales = 0
+    minSale = 999999#
+    maxSale = 0
+    minStore = 0
+    maxStore = 0
+    
+    For Each storeSales In Range("C7:C30")
+        If storeSales.Value <> "" And storeSales.Value <> 0 Then
+            curSale = storeSales.Value
+            countOfSales = countOfSales + 1
+            sumOfSales = sumOfSales + curSale
+            
+            minStore = IIf(curSale < minSale, storeSales.Offset(, -1).Value, minStore)
+            minSale = IIf(curSale < minSale, curSale, minSale)
+            
+            maxStore = IIf(curSale > maxSale, storeSales.Offset(, -1).Value, maxStore)
+            maxSale = IIf(curSale > maxSale, curSale, maxSale)
+            
+            If curSale < 500 Or curSale > 5000 Then
+                'capture the reason for low or high sales
+                reason = InputBox("Reason for deviation:", storeSales.Offset(, -1).Value)
+                storeSales.Offset(, 1).Value = reason
+            End If
+            
+        End If
+        
+    Next storeSales
+    
+    If countOfSales > 0 Then
+        message = "We operated a total of " & countOfSales & " stores today" & vbCrLf
+        message = message & "We made a total of " & Format(sumOfSales, "$#,#.00") & vbCrLf
+        message = message & "Maximum sales we had is " & Format(maxSale, "$#,#.00") & " from " & maxStore & vbCrLf
+        message = message & "Minimum sales we had is " & Format(minSale, "$#,#.00") & " from " & minStore & vbCrLf
+        message = message & "Today's Average Sale is " & Format(sumOfSales / countOfSales, "$#,#.00")
+        
+        MsgBox message, vbInformation + vbOKOnly, "Daily Sales Status - " & Format(Now, "dddd, mmmm d, yyyy")
+        
+        [valDailyLogTitle] = "Daily Sales Status - " & Format(Now, "dddd, mmmm d, yyyy")
+        [valDailyLogSummary] = message
+        
+        Range("areaDailyLog").ExportAsFixedFormat xlTypePDF, ThisWorkbook.Path & "\dailySalesLog-" & Format(Now, "ddmmyyyy-hhmm") & ".pdf"
+        
+        [valDailyLogTitle] = ""
+        [valDailyLogSummary] = ""
+    End If
+End Sub
